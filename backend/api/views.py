@@ -293,6 +293,138 @@ class CartStatsAPIView(generics.RetrieveAPIView):
 
 
 
+# This is creating a CartOrder for us, that has all the items that were in the cart for that cart_id or user
+class CreateOrderAPIView(generics.CreateAPIView):
+    serializer_class = api_serializer.CartOrderSerializer
+    permission_classes = [AllowAny]
+    queryset = api_models.CartOrder.objects.all()
+
+    # By doing this, we are overriding the create method and we can control what variables have to be passed in from the frontend. Otherwise they will have to pass in all variables that the model requires
+    def create(self, request, *args, **kwargs):
+        full_name = request.data['full_name']
+        email = request.data['email']
+        country = request.data['country']
+        cart_id = request.data['cart_id']
+        user_id = request.data['user_id']
+
+        # If a user is not logged in, we will send 0 as the user_id
+        if user_id != 0:
+            # if there is a user, we will grab the User object for the logged in User in this manner
+            user = User.objects.get(id=user_id)
+        else:
+            user = None
+
+        #  Fetching all of the items in the cart, filtered by the cart_id. We should be filtering by the user_id for MyPrice probably
+        cart_items = api_models.Cart.objects.filter(cart_id=cart_id)
+
+        total_price = Decimal(0.00)
+        total_tax = Decimal(0.00)
+        total_initial_total = Decimal(0.00)
+        total_total = Decimal(0.00)
+
+        order = api_models.CartOrder.objects.create(
+            full_name=full_name,
+            email=email,
+            country=country,
+            student=user
+        )
+
+        # Looping through all of the items already in the cart, so we can create the full order I believe
+        # We should probably use a loop through function to loop through all items in the cart when user selects the "price comparison"
+        # and we will loop through to return the custom pricing from each distributor for each item
+        # This is creating a CartOrderItem will all of the fields from the CartOrderItem model
+        for c in cart_items:
+            api_models.CartOrderItem.objects.create(
+                order=order,            # we created an order above this, I am not really sure how this works though
+                course=c.course,
+                teacher=c.course.teacher,      # we using the foreign key here to go inside of the course and find the teacher
+                price=c.price,
+                tax_fee=c.tax_fee,
+                total=c.total,
+                initial_total=c.total,
+            )
+
+            # These will update everytime we loop through and calculate the total for all items in the cart
+            total_price += Decimal(c.price)
+            total_tax += Decimal(c.tax_fee)
+            total_initial_total += Decimal(c.total)
+            total_total += Decimal(c.total)
+
+            order.teachers.add(c.course.teacher)      # something about it going and grabbing the teacher, and adding it to something
+
+        # We are filling in any of the model columns that we left out from the for loop
+        # We are actually creating a CartOrder so it needs all of the models fields I believe. We add some in the order= above and then some in the for loop as well
+        order.sub_total = total_price
+        order.tax_fee = total_tax
+        order.initial_total = total_initial_total
+        order.total = total_total
+
+        order.save()
+
+        return Response({'message': "Order Created Successfully"}, status=status.HTTP_201_CREATED)
+
+
+
+# This is just a view that allows us to pass an oid and it provides us with all of the details of that particualr cart order
+# I am assuming we are going to use this to pass this to the strip payment functionality
+# We can make our lookup field to be any of the unique fields in the CartOrder model
+class CheckoutAPIView(generics.RetrieveAPIView):
+    serializer_class = api_serializer.CartOrderSerializer
+    permission_classes = [AllowAny]
+    queryset = api_models.CartOrder.objects.all()
+    lookup_field = 'oid'
+
+
+
+
+class CouponApplyAPIView(generics.CreateAPIView):
+    serializer_class = api_serializer.CouponSerializer
+    permission_classes = [AllowAny]
+
+    def create(self, request, *args, **kwargs):
+        order_oid = request.data['order_oid']
+        coupon_code = request.data['coupon_code']
+
+        order = api_models.CartOrder.objects.get(oid=order_oid)
+        coupon = api_models.Coupon.objects.get(code=coupon_code)
+
+        if coupon:
+            # We are getting all of the items that are in this partical CartOrder
+            order_items = api_models.CartOrderItem.objects.filter(order=order, teacher=coupon.teacher)       # because the order is a foreign key, it needs the entire object it seems like. Teacher object is passed as well
+            for i in order_items:
+                if not coupon in i.coupons.all():
+                    discount = i.total * coupon.discount / 100            # this is just using the total field found in CartOrderItem, and then finding the discount field found in the coupon that was passed in via the coupon_code
+                    
+                    i.total -= discount
+                    i.price -= discount        # we are removing the discount from the total and the price for this CartOrderItem.
+                    i.saved += discount        # we are then adding the discount into the saved field for this CartOrderItem
+                    i.applied_coupon = True
+                    i.coupons.add(coupon)
+
+                    order.coupons.add(coupon)     # adding this particular coupon to the CartOrder, so it shows there in the coupons field
+                    order.total -= discount
+                    order.sub_total -= discount
+                    order.saved += discount        # adding how much they have saved into the CartOrder for this item
+
+                    i.save()
+                    order.save()
+                    coupon.used_by.add(order.student)
+
+                    return Response({"message": "Coupon Found and Activated"}, status=status.HTTP_201_CREATED)
+                else:
+                    return Response({"message": "Coupon Already Applied"}, status=status.HTTP_200_OK)
+
+        else:
+            return Response({"message": "Coupone Not Found"}, status=status.HTTP_404_NOT_FOUND)
+
+        
+
+
+
+
+
+
+
 
 
 
