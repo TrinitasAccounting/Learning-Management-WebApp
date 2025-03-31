@@ -15,6 +15,7 @@ urlpatterns = [
 
     # Core Endpoints
     path('course/category/', api_views.CategoryListAPIView.as_view()),
+    path('course/search/', api_views.SearchCourseAPIView.as_view()),           # Requires: a searchable value to search the database for
     path('course/course-list/', api_views.CourseListAPIView.as_view()),
     path('course/course-detail/<slug>/',api_views.CourseDetailAPIView.as_view()),
     path("course/cart/", api_views.CartAPIView.as_view()),
@@ -24,6 +25,8 @@ urlpatterns = [
     path("order/create-order/",api_views.CreateOrderAPIView.as_view()),       # Required: full_name, email, country, cart_id, user_id
     path("order/checkout/<oid>", api_views.CheckoutAPIView.as_view()),        # Required: oid
     path("order/coupon/", api_views.CouponApplyAPIView.as_view()),
+    path("payment/stripe-checkout/<order_oid>", api_views.StripeCheckoutAPIView.as_view()),
+    path('payment/payment-sucess/', api_views.PaymentSuccessAPIView.as_view()),
 
 
 ]

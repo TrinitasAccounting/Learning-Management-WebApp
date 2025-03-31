@@ -40,19 +40,21 @@ PLATFORM_STATUS = (
     ("Published", "Published"),
 )
 
+# Important to note: the value is an integer and not a string. I had to fix this bug before
 RATING = (
-    ("1", "1 Star"),
-    ("2", "2 Star"),
-    ("3", "3 Star"),
-    ("4", "4 Star"),
-    ("5", "5 Star"),
+    (1, "1 Stars"),
+    (2, "2 Stars"),
+    (3, "3 Stars"),
+    (4, "4 Stars"),
+    (5, "5 Stars"),
 )
 
 NOTI_TYPE = (
     ("New Order", "New Order"),
     ("New Review", "New Review"),
     ("New Course Question", "New Course Question"),
-    ("Course Pbulished", "Course Pbulished"),
+    ("Course Published", "Course Published"),
+    ("Course Enrollment Completed", "Course Enrollment Completed"),
 )
 
 

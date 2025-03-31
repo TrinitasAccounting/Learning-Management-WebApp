@@ -128,7 +128,7 @@ export const getRefreshedToken = async () => {
         const response = await axios.post(`user/token/refresh/`, {                   // this returns us a new token when posting a refresh token to this route
             refresh: refresh_token,
         })
-        return response;
+        return response.data;
 
     } catch (error) {
         console.error("Failed to refresh token:", error);

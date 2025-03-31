@@ -283,27 +283,36 @@ class EnrolledCourseSerializer(serializers.ModelSerializer):
         fields = '__all__'
         model = api_models.EnrolledCourse
 
-    # def __init__(self, *args, **kwargs):
-    #     super(EnrolledCourseSerializer, self).__init__(*args, **kwargs)
-    #     request = self.context.get("request")
-    #     if request and request.method == "POST":
-    #         self.Meta.depth = 0
-    #     else:
-    #         self.Meta.depth = 3
+    def __init__(self, *args, **kwargs):
+        super(EnrolledCourseSerializer, self).__init__(*args, **kwargs)
+        request = self.context.get("request")
+        if request and request.method == "POST":
+            self.Meta.depth = 0
+        else:
+            self.Meta.depth = 3
+
+
 
 class CourseSerializer(serializers.ModelSerializer):
-    students = EnrolledCourseSerializer(many=True, required=False, read_only=True,)
+    students = EnrolledCourseSerializer(many=True, required=False, read_only=True,)      # any custom functions need to have this so it can properly access the correct model and serialize it to run the custom function
     curriculum = VariantSerializer(many=True, required=False, read_only=True,)
     lectures = VariantItemSerializer(many=True, required=False, read_only=True,)
     reviews = ReviewSerializer(many=True, read_only=True, required=False)
+
     class Meta:
         fields = ["id", "category", "teacher", "file", "image", "title", "description", "price", "language", "level", "platform_status", "teacher_course_status", "featured", "course_id", "slug", "date", "students", "curriculum", "lectures", "average_rating", "rating_count", "reviews",]
         model = api_models.Course
 
-    # def __init__(self, *args, **kwargs):
-    #     super(CourseSerializer, self).__init__(*args, **kwargs)
-    #     request = self.context.get("request")
-    #     if request and request.method == "POST":
-    #         self.Meta.depth = 0
-    #     else:
-    #         self.Meta.depth = 3
+    # Controlling the depth of our json objects returned
+    # Without this, our courses was not returning the teachers information, just was returning 1
+    # This is how far into our foreign key/manytomany models we go, and through how many foreignKeys inside of the children models we go
+    # EXTREMELY IMPORTANT IMPORTANT IMPORTANT IMPORTANT IMPORTANT IMPORTANT IMPORTANT IMPORTANT IMPORTANT IMPORTANT IMPORTANT IMPORTANT IMPORTANT IMPORTANT IMPORTANT IMPORTANT
+    def __init__(self, *args, **kwargs):
+        super(CourseSerializer, self).__init__(*args, **kwargs)
+        request = self.context.get("request")
+        if request and request.method == "POST":
+            self.Meta.depth = 0
+        else:
+            self.Meta.depth = 3
+
+        

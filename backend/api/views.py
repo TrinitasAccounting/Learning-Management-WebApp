@@ -1,4 +1,4 @@
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
 from django.conf import settings
@@ -15,6 +15,13 @@ from rest_framework.response import Response
 
 import random
 from decimal import Decimal
+import stripe
+import requests
+
+# Initializing Stripe
+stripe.api_key = settings.STRIPE_SECRET_KEY
+PAYPAL_CLIENT_ID = settings.PAYPAL_CLIENT_ID
+PAYPAL_SECRET_ID = settings.PAYPAL_SECRET_ID
 
 
 
@@ -416,6 +423,172 @@ class CouponApplyAPIView(generics.CreateAPIView):
 
         else:
             return Response({"message": "Coupone Not Found"}, status=status.HTTP_404_NOT_FOUND)
+
+
+
+
+class StripeCheckoutAPIView(generics.CreateAPIView):
+    serializer_class = api_serializer.CartOrderSerializer
+    permission_classes = [AllowAny]
+
+    def create(self, request, *args, **kwargs):
+        order_oid = self.kwargs['order_oid']
+        # .get() varies from .filter() in this way. 
+        # .filter() returns a queryset or multiple rows matching the filter criteria and will also return an empty queryset array if no matches. This will still register as a returned value so use .get() if we need to check if there was something returned properly
+        # .get() returns one single row or it raises a DoesNotExist if there is no item found. So it will only return one item matching from the database (there should only be one match when usign .get())
+        order = api_models.CartOrder.objects.get(oid=order_oid)    
+
+        if not order:
+            return Response({"message": "Order Not Found"}, status=status.HTTP_404_NOT_FOUND)
+
+        try:
+            # this came from Stripes documentation
+            checkout_session = stripe.checkout.Session.create(
+                customer_email = order.email,
+                payment_method_types =['card'],
+                line_items = [
+                    {
+                        'price_data': {
+                            'currency': 'usd',
+                            'product_data': {
+                                'name': order.full_name,
+                            },
+                            'unit_amount': int(order.total * 100)
+                        },
+                        'quantity': 1
+                    }
+                ],
+                mode='payment',
+                success_url=settings.FRONTEND_SITE_URL + 'payment-success/' + order.oid + '?session_id={CHECKOUT_SESSION_ID}',
+                cancel_url=settings.FRONTEND_SITE_URL + 'payment-failed/'
+            )
+
+            # DEBUGGING   =>  we can print to the terminal to see if it is properly sending things as we need to 
+            print("check_session ==== ", checkout_session)
+
+            # Here we are prefilling the CartOrder model field for 'stripe_session_id' with the id that the stripe checkout session returns to us
+            order.stripe_session_id = checkout_session.id
+
+            # the checkout session will have a url that when visited, will open the Stripe payments page
+            return redirect(checkout_session.url)
+
+        except stripe.error.StripeError as e:
+            return Response({"message": f"Something went wrong when trying to make payment. Error: {str(e)}]"}) 
+
+
+
+
+
+# Paypal checkout handling by the frontend
+def get_access_token(client_id, secret_key):
+    token_url = "https://api.sandbox.paypal.com/v1/oauth/token"
+    data = {'grant_type': 'client_credentials'}
+    auth = (client_id, secret_key)
+    response = requests.post(token_url, data=data, auth=auth)
+
+    if response.status_code == 200:
+        print("Access Token ====", response.json()['access_token'])
+        return response.json()['access_token']
+    else:
+        raise Exception(f"Failed to get access token from paypal {response.status_code}")
+
+
+class PaymentSuccessAPIView(generics.CreateAPIView):
+    serializer_class = api_serializer.CartOrderSerializer
+    queryset = api_models.CartOrder.objects.all()
+
+    def create(self, request, *args, **kwargs):
+        order_oid = request.data['order_oid']
+        session_id = request.data['session_id']
+        paypal_order_id = request.data['paypal_order_id']
+
+        order = api_models.CartOrder.objects.get(oid=order_oid)
+        order_items = api_models.CartOrderItem.objects.filter(order=order)
+
+        # Paypal payment success
+        if paypal_order_id != "null":
+            paypal_api_url = f"https://api-m.sandbox.paypal.com/v2/checkout/orders/{paypal_order_id}"
+            headers = {
+                'Content-Type': 'application/json',
+                'Authorization': f"Bearer {get_access_token(PAYPAL_CLIENT_ID, PAYPAL_SECRET_ID)}"
+            }
+            reponse = requests.get(paypal_api_url, headers=headers)
+            if response.status_code == 200:
+                paypal_order_data = response.json()
+                paypal_payment_status = paypal_order_data['status']
+                if paypal_payment_status == "COMPLETED":
+                    if order.payment_status == "Processing":
+                        order.payment_status = "Paid"
+                        order.save()
+                        api_models.Notification.objects.create(user=order.student, order=order, type="Course Enrollment Completed")
+                        
+                        # We are looping through the cart order items, and pushing a notification for each item. 
+                        # We could potentially do this with the products on checkout of MyPrice, as not all products will have the same distributor and some may need to be combined to send an order to a distributor
+                        for o in order_items:
+                            api_models.Notification.object.create(
+                                teacher=o.teacher,
+                                order=order,
+                                order_item=o,
+                                type="New Order"
+                            )
+                            api_models.EnrolledCourse.objects.create(
+                                course=o.course,
+                                user=order.student,
+                                teacher=o.teacher,
+                                order_item=o
+                            )
+                        
+                        return Response({"message": "Payment Successful"})
+                    else:
+                        return Response({"message": "Already paid"})
+                else:
+                    return Response({"message": "Payment Failed"})
+            else:
+                return Response({"message": "Paypal Error Occured"})
+
+        # Stripe payment success
+        if session_id != "null":
+            session = stripe.checkout.Session.retrieve(session_id)     # grabbing the session from the stripe checkout session I think
+            if session.payment_status == "paid":
+                if order.payment_status == "Processing":
+                    order.payment_status = "Paid"
+                    order.save()
+
+                    api_models.Notification.objects.create(user=order.student, order=order, type="Course Enrollment Completed")
+
+                    for o in order_items:
+                            api_models.Notification.object.create(
+                                teacher=o.teacher,
+                                order=order,
+                                order_item=o,
+                                type="New Order"
+                            )
+                            api_models.EnrolledCourse.objects.create(
+                                course=o.course,
+                                user=order.student,
+                                teacher=o.teacher,
+                                order_item=o
+                            )
+
+                    return Response({"message": "Payment Successful"})
+                else:
+                    return Response({"message": "Already Paid"})
+            else:
+                return Response({"message": "Payment Failed"})
+
+
+
+# BACKEND SEARCH for optimization (can use for customers to find products when they search for them, if we don't want to hold all users products on the frontend)
+class SearchCourseAPIView(generics.ListAPIView):
+    serializer_class = api_serializer.CourseSerializer
+    permission_classes = [AllowAny]
+
+    # Overriding the queryset so that we can optimize by having the user search for courses/products on the backend
+    def get_queryset(self):
+        # Now query will be what the user has to pass into the front end, and it will be sent over to the backend to search through the courses
+        query = self.request.GET.get('query')
+        # XXXXXX__icontains is a django field lookup. This is essentially going to return all rows where the title contains the searched value (icontains converts everything to lowercase and searches for any where in the title cell for those characters, similar to an SQL '%asdf%')
+        return api_models.Course.objects.filter(title__icontains=query, platform_status="Published", teacher_course_status="Published")
 
         
 
