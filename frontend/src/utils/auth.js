@@ -96,17 +96,17 @@ export const setUser = async () => {
 export const setAuthUser = (access_token, refresh_token) => {
     if (access_token && refresh_token) {
         Cookie.set('access_token', access_token, {
-            expires: 1,                      // access_token expires after 1 day
+            expires: 10000,                      // access_token expires after 1 day (should be a 1)
             secure: true,
         });
 
         Cookie.set('refresh_token', refresh_token, {
-            expires: 7,                      // access_token expires after 7 days
+            expires: 7000,                      // access_token expires after 7 days (should be a 7)
             secure: true,
         });
 
-        const user = jwt_decode(access_token) ?? null           // jwt_decode will go and get the user information from the access_token that it receives or sees
-
+        // const user = jwt_decode(access_token) ?? null           // jwt_decode will go and get the user information from the access_token that it receives or sees
+        const user = access_token ? jwt_decode(access_token) : null;
         if (user) {
             useAuthStore.getState().setUser(user);               // accessing the store and using getState() in order for us to pick what state function we want to call. Then call the setUser function from our store
         }

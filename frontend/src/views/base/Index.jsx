@@ -33,7 +33,6 @@ function Index() {
         fetchCourse();
     }, [])
 
-    console.log(courses)
 
 
 
@@ -175,7 +174,7 @@ function Index() {
                                         <div className="col">
                                             {/* Card */}
                                             <div className="card card-hover">
-                                                <Link to={`/course-detail/slug/`}>
+                                                <Link to={`/course-detail/${c.slug}/`}>
                                                     <img
                                                         src={c.image}
                                                         alt={c.title}
@@ -220,7 +219,7 @@ function Index() {
                                                             <button type='button' className="text-inherit text-decoration-none btn btn-primary me-2">
                                                                 <i className="fas fa-shopping-cart text-primary text-white" />
                                                             </button>
-                                                            <Link to={""} className="text-inherit text-decoration-none btn btn-primary">
+                                                            <Link to={`/course-detail/${c.slug}/`} className="text-inherit text-decoration-none btn btn-primary">
                                                                 Enroll Now <i className="fas fa-arrow-right text-primary align-middle me-2 text-white" />
                                                             </Link>
                                                         </div>
