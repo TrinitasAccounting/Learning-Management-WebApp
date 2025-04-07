@@ -14,12 +14,15 @@ function CourseDetail() {
 
     const [course, setCourse] = useState([])
     const [isLoading, setIsLoading] = useState(true)
+    const [addToCartBtn, setAddToCartBtn] = useState("Add to Cart")
+
+
     const param = useParams()       // we pass in the ":slug" in the route we created and that allows us to destructure this parameter
     // console.log(param.slug)          // we can then do param.XXXXX to access the particular part of the url we would like to access
 
 
+    // Fetching our specific course 
     const fetchCourse = () => {
-
         useAxios().get(`course/course-detail/${param.slug}/`).then((res) => {
             setCourse(res.data)
             setIsLoading(false)
@@ -29,6 +32,40 @@ function CourseDetail() {
     useEffect(() => {
         fetchCourse()
     }, [])
+
+    console.log(course)
+
+
+    // Adding the product into the users cart
+    // We are passing in as props, all of the required fields from our views.py CartAPIView POST route
+    const addToCart = async (courseId, userId, price, country, cartId) => {
+        setAddToCartBtn("Adding To Cart")
+        const formdata = new FormData()       // creating a new formdata that will be sent over to the backend API route
+
+
+
+        // Appending to the formdata, with the correct backend property name equally to what we called the frontend props
+        formdata.append("course_id", courseId)
+        formdata.append("user_id", userId)
+        formdata.append("price", price)
+        formdata.append("country_name", country)
+        formdata.append("cart_id", cartId)
+
+
+        try {
+            await useAxios().post(`course/cart/`, formdata).then((res) => {
+                console.log(res.data)
+                setAddToCartBtn("Added To Cart")
+            })
+
+
+        } catch (error) {
+            console.log(error)
+            setAddToCartBtn("Add To Cart")
+        }
+    }
+
+
 
 
 
@@ -276,7 +313,7 @@ function CourseDetail() {
                                                             {course?.curriculum?.map((c, index) => {
 
                                                                 return (
-                                                                    <div className="accordion-item mb-3">
+                                                                    <div className="accordion-item mb-3" key={index}>
                                                                         <h6 className="accordion-header font-base" id="heading-1">
                                                                             <button
                                                                                 className="accordion-button fw-bold rounded d-sm-flex d-inline-block collapsed"
@@ -1232,9 +1269,39 @@ function CourseDetail() {
                                                         </div>
                                                         {/* Buttons */}
                                                         <div className="mt-3 d-sm-flex justify-content-sm-between ">
-                                                            <Link to="/cart/" className="btn btn-primary mb-0 w-100 me-2">
-                                                                <i className='fas fa-shopping-cart'></i> Add To Cart
-                                                            </Link>
+
+                                                            {/* ADD TO CART BUTTON VARATIONS */}
+                                                            {/* NEEDS TO BE OPTIMIZED, WAY TOO MUCH REPEATED CODE BELOW FOR THE ADDTOCART Button */}
+
+                                                            {addToCartBtn === "Added To Cart" ?
+                                                                <button
+                                                                    className="btn btn-primary mb-0 w-100 me-2"
+                                                                    onClick={() => addToCart(course.id, 1, course.price, "Nigeria", "8325347")}
+                                                                >
+                                                                    <i className='fas fa-check-circle'></i> Added To Cart
+                                                                </button>
+
+                                                                :
+
+                                                                addToCartBtn === "Adding To Cart" ?
+                                                                    <button
+                                                                        className="btn btn-primary mb-0 w-100 me-2"
+                                                                        onClick={() => addToCart(course.id, 1, course.price, "Nigeria", "8325347")}
+                                                                    >
+                                                                        <i className='fas fa-spinner fa-spin'></i> Add To Cart
+                                                                    </button>
+                                                                    :
+                                                                    <button
+                                                                        className="btn btn-primary mb-0 w-100 me-2"
+                                                                        onClick={() => addToCart(course.id, 1, course.price, "Nigeria", "8325347")}
+                                                                    >
+                                                                        <i className='fas fa-shopping-cart'></i> Add To Cart
+                                                                    </button>
+                                                            }
+
+
+
+
                                                             <Link to="/cart/" className="btn btn-success mb-0 w-100">
                                                                 Enroll Now <i className='fas fa-arrow-right'></i>
                                                             </Link>
