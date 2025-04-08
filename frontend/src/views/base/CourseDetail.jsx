@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import moment from 'moment'
+import Swal from 'sweetalert2'
 
 import BaseHeader from '../partials/BaseHeader'
 import BaseFooter from '../partials/BaseFooter'
@@ -8,6 +9,12 @@ import BaseFooter from '../partials/BaseFooter'
 import { useParams } from 'react-router-dom'
 
 import useAxios from '../../utils/useAxios'
+import CartId from '../plugin/CartId'
+import GetCurrentAddress from '../plugin/UserCountry'
+import UserData from '../plugin/UserData'
+import Toast from '../plugin/Toast'
+
+
 
 
 function CourseDetail() {
@@ -19,6 +26,13 @@ function CourseDetail() {
 
     const param = useParams()       // we pass in the ":slug" in the route we created and that allows us to destructure this parameter
     // console.log(param.slug)          // we can then do param.XXXXX to access the particular part of the url we would like to access
+
+    // Calling our geolocation function in order to get the location of the IP address
+    const country = GetCurrentAddress().country
+
+    // Calling our user function in order to get the user_id from the logged in credentials
+    const userId = UserData().user_id
+    console.log(userId)
 
 
     // Fetching our specific course 
@@ -33,7 +47,6 @@ function CourseDetail() {
         fetchCourse()
     }, [])
 
-    console.log(course)
 
 
     // Adding the product into the users cart
@@ -41,8 +54,6 @@ function CourseDetail() {
     const addToCart = async (courseId, userId, price, country, cartId) => {
         setAddToCartBtn("Adding To Cart")
         const formdata = new FormData()       // creating a new formdata that will be sent over to the backend API route
-
-
 
         // Appending to the formdata, with the correct backend property name equally to what we called the frontend props
         formdata.append("course_id", courseId)
@@ -56,6 +67,16 @@ function CourseDetail() {
             await useAxios().post(`course/cart/`, formdata).then((res) => {
                 console.log(res.data)
                 setAddToCartBtn("Added To Cart")
+                Toast().fire({
+                    title: "Added To Cart",
+                    icon: "success"
+                })
+
+                // This alert will be a large pop up that one has to click away from
+                // Swal.fire({
+                //     title: "Added To Cart",
+                //     icon: "success"
+                // })
             })
 
 
@@ -1276,7 +1297,7 @@ function CourseDetail() {
                                                             {addToCartBtn === "Added To Cart" ?
                                                                 <button
                                                                     className="btn btn-primary mb-0 w-100 me-2"
-                                                                    onClick={() => addToCart(course.id, 1, course.price, "Nigeria", "8325347")}
+                                                                    onClick={() => addToCart(course.id, userId, course.price, country, CartId())}
                                                                 >
                                                                     <i className='fas fa-check-circle'></i> Added To Cart
                                                                 </button>
@@ -1286,14 +1307,14 @@ function CourseDetail() {
                                                                 addToCartBtn === "Adding To Cart" ?
                                                                     <button
                                                                         className="btn btn-primary mb-0 w-100 me-2"
-                                                                        onClick={() => addToCart(course.id, 1, course.price, "Nigeria", "8325347")}
+                                                                        onClick={() => addToCart(course.id, userId, course.price, country, CartId())}
                                                                     >
                                                                         <i className='fas fa-spinner fa-spin'></i> Add To Cart
                                                                     </button>
                                                                     :
                                                                     <button
                                                                         className="btn btn-primary mb-0 w-100 me-2"
-                                                                        onClick={() => addToCart(course.id, 1, course.price, "Nigeria", "8325347")}
+                                                                        onClick={() => addToCart(course.id, userId, course.price, country, CartId())}
                                                                     >
                                                                         <i className='fas fa-shopping-cart'></i> Add To Cart
                                                                     </button>

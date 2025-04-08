@@ -1,10 +1,37 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 
 import BaseHeader from '../partials/BaseHeader'
 import BaseFooter from '../partials/BaseFooter'
 
+import apiInstance from '../../utils/axios';
+import CartId from '../plugin/CartId';
+
+
+
 function Cart() {
+    const [cart, setCart] = useState([])
+    const [cartStats, setCartStats] = useEffect([])
+
+
+    // Fetching the cart items and the cart stats
+    const fetchCartItems = async () => {
+        await apiInstance.get(`course/cart-list/${CartId()}/`).then((res) => {
+            console.log(res.data)
+            setCart(res.data)
+        });
+
+        await apiInstance.get(`cart/stats/${CartId()}/`).then((res) => {
+            console.log(res.data)
+            setCartStats(res.data)
+        })
+    }
+
+    useEffect(() => {
+        fetchCartItems()
+    }, [])
+
+
     return (
         <>
             <BaseHeader />
@@ -146,7 +173,7 @@ function Cart() {
                                                 placeholder="Email"
                                             />
                                         </div>
-                                        
+
                                         {/* Country option */}
                                         <div className="col-md-12 bg-light-input">
                                             <label htmlFor="mobileNumber" className="form-label">

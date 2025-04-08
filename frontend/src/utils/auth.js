@@ -96,12 +96,12 @@ export const setUser = async () => {
 export const setAuthUser = (access_token, refresh_token) => {
     if (access_token && refresh_token) {
         Cookie.set('access_token', access_token, {
-            expires: 10000,                      // access_token expires after 1 day (should be a 1)
+            expires: 1,                      // access_token expires after 1 day (should be a 1)
             secure: true,
         });
 
         Cookie.set('refresh_token', refresh_token, {
-            expires: 7000,                      // access_token expires after 7 days (should be a 7)
+            expires: 7,                      // access_token expires after 7 days (should be a 7)
             secure: true,
         });
 

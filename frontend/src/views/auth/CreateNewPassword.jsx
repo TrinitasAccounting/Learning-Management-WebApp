@@ -4,6 +4,7 @@ import BaseFooter from '../partials/BaseFooter'
 
 import apiInstance from '../../utils/axios'
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import Toast from '../plugin/Toast';
 
 
 
@@ -29,7 +30,11 @@ function CreateNewPassword() {
     setIsLoading(true)
 
     if (confirmPassword !== password) {
-      alert("Passwords do not match")
+      // alert("Passwords do not match")
+      Toast().fire({
+        title: "Passwords do no match",
+        icon: "warning"
+      })
       return;
     }
     else {
@@ -47,7 +52,11 @@ function CreateNewPassword() {
           console.log(res.data)
           setIsLoading(false)
           navigate("/login/")
-          alert(res.data.message)
+          // alert(res.data.message)
+          Toast().fire({
+            title: res.data.message,
+            icon: "warning"
+          })
         });
 
       } catch (error) {

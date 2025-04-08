@@ -6,6 +6,7 @@ import { Link, useNavigate } from 'react-router-dom'
 
 import apiInstance from '../../utils/axios';
 import { register } from '../../utils/auth';
+import Toast from '../plugin/Toast'
 
 
 
@@ -24,12 +25,20 @@ function Register() {
 
     const { error } = await register(fullName, email, password, password2)              // a function we built in our utils folder so we can use it anywhere
     if (error) {
-      alert(error);
+      // alert(error);
+      Toast().fire({
+        title: error,
+        icon: "warning"
+      })
       setIsLoading(false);
     }
     else {
       navigate('/')
-      alert("Registration Successfull, you have now been logged in")
+      // alert("Registration Successfull, you have now been logged in")
+      Toast().fire({
+        title: "Registration Successfull, you have now been logged in",
+        icon: "warning"
+      })
     }
 
     setIsLoading(false)

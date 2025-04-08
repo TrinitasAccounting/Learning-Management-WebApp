@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 
 import apiInstance from '../../utils/axios'
 import { login } from '../../utils/auth'
+import Toast from '../plugin/Toast'
 
 import BaseHeader from '../partials/BaseHeader'
 import BaseFooter from '../partials/BaseFooter'
@@ -25,7 +26,11 @@ function Login() {
     const { error } = await login(email, password)
 
     if (error) {
-      alert(error)
+      // alert(error)
+      Toast().fire({
+        title: error,
+        icon: "warning"
+      })
       setIsLoading(false)
     }
     else {
